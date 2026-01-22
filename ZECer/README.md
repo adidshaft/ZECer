@@ -76,7 +76,7 @@ We believe in radical transparency. If you are testing ZECer, understand these c
 
 1.  **Clone the Repo:**
     ```bash
-    git clone [https://github.com/yourusername/ZECer.git](https://github.com/yourusername/ZECer.git)
+    git clone [https://github.com/adidshaft/ZECer.git](https://github.com/adidshaft/ZECer.git)
     ```
 2.  **Dependencies:**
     Open `ZECer.xcodeproj` in Xcode 15+. Wait for Swift Package Manager to resolve `ZcashLightClientKit`.
