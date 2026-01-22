@@ -10,47 +10,57 @@ ZECer is a proof-of-concept iOS application that re-imagines **offline, peer-to-
 
 ---
 
+## 🗺️ Roadmap to Production
+
+We are building ZECer in distinct phases, moving from "Visual Prototype" to "Real-World Protocol."
+
+| Phase | Name | Goal | Key Tech | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **1** | **Security & Onboarding** | Secure keys with hardware encryption. | `Keychain`, `LocalAuthentication` | ✅ **Completed** |
+| **2** | **Persistence & Ledger** | Never lose data if the app crashes. | `CoreData`, `Combine` | ✅ **Completed** |
+| **3** | **Real Crypto Engine** | Remove mocks. Generate real ZK-Proofs. | `ZcashLightClientKit`, `Testnet` | 🚧 **In Progress** |
+| **4** | **Heavy Transport** | Send 4KB+ crypto payloads via BLE. | `CoreBluetooth`, Packet Chunking | 📅 Planned |
+| **5** | **The Handshake** | Encrypt the BLE tunnel itself. | `CryptoKit`, `ECDH` Key Exchange | 📅 Planned |
+| **6** | **Production Polish** | Compliance & App Store readiness. | Export Compliance, Error Handling | 📅 Planned |
+
+---
+
 ## 🌟 Core Features
 
-* **The "Z-Check" Instrument:** A glowing, digital bearer instrument that replaces boring input fields.
-* **Gesture-Based Economy:** Send funds by physically "flicking" the card up to a nearby device.
-* **Acoustic & Haptic Reality:** Uses the Taptic Engine to simulate the friction of paper and the heavy "thud" of gold settling.
-* **True Offline Transport:** Slices large crypto transactions into Bluetooth LE (BLE) packets to bypass the need for WiFi or Cellular.
-* **Shielded by Default:** Built on `ZcashLightClientKit` (v2.4.2) to ensure financial privacy.
+* **The "Z-Check" Interface:** A glowing, digital bearer instrument.
+* **Gesture Sending:** Swipe up to "flick" cash to a nearby device.
+* **Offline Activity Feed:** A local ledger that tracks your money before it hits the blockchain.
+* **True Offline Transport:** Slices large crypto transactions into Bluetooth LE (BLE) packets.
+* **Shielded by Default:** Built on `ZcashLightClientKit` (v2.4.2).
 
 ---
 
 ## 📊 Current Product State
 
-We believe in radical transparency. ZECer is currently in **Alpha**, meaning the core "Magic" works, but the "Safety Belts" are still being installed.
+ZECer is currently transitioning from **Alpha** (Mock) to **Beta** (Real Crypto).
 
 | Component | Status | Maturity | Notes |
 | :--- | :--- | :--- | :--- |
-| **Core Wallet Engine** | 🟢 **Online** | **Alpha** | Fully capable of syncing with Mainnet, deriving keys, and generating valid zero-knowledge proofs. |
-| **Offline Transport** | 🟢 **Online** | **Beta** | BLE packet fragmentation and reassembly is functional. "Fire-and-forget" protocol is fast but lacks retry logic. |
-| **User Interface** | 🟢 **Polished** | **Release Candidate** | Physics animations, radar scanning, and haptics are production-grade. |
-| **Data Persistence** | 🟠 **Pending** | **Prototype** | Received offline transactions are currently held in RAM. If the app closes before reconnecting to the internet, **data is lost.** |
-| **Key Security** | 🔴 **Critical** | **Dev Mode** | Seed phrases are currently handled in the view layer for testing convenience. **Keychain storage is not yet active.** |
+| **Core Wallet Engine** | 🟢 **Online** | **Alpha** | Syncs with Mainnet. Currently implementing "Offline Signing" flow. |
+| **Offline Transport** | 🟢 **Working** | **Beta** | BLE chunking works for small payloads. Scaling for large ZK-proofs is next. |
+| **User Interface** | 🟢 **Polished** | **Release Candidate** | Physics, haptics, and animations are production-grade. |
+| **Data Persistence** | 🟢 **Active** | **Beta** | `TxManager` saves all transactions to CoreData. History persists across restarts. |
+| **Key Security** | 🟢 **Secured** | **Beta** | Seed phrases are encrypted in the iOS Keychain and protected by FaceID. |
 
 ---
 
-## 🔍 Transparency: Assumptions & Risks
+## 🔍 Transparency: Architectural Assumptions
 
-We are building this in the open. If you are testing ZECer, you must understand the architectural assumptions we have made for this Alpha build:
+We believe in radical transparency. If you are testing ZECer, understand these current architectural decisions:
 
-### 1. The "Hot Wallet" Assumption
-* **The State:** To prioritize the development of the BLE transport layer, we have not yet integrated the iOS Keychain enclave. The seed phrase is passed directly into the engine from the UI.
-* **The Risk:** In this build, your seed phrase resides in the application memory. 
-* **The Fix:** Production versions will implement `LocalAuthentication` (FaceID) to decrypt the seed from the Secure Enclave only when signing.
+### 1. The "Pending" State
+* **The Logic:** Transactions sent offline are stored locally as "Pending."
+* **The Reality:** The receiver acts as a "Mule." They carry the signed transaction blob until they find the internet, at which point they broadcast it to the Zcash network.
+* **The Risk:** If the receiver's phone is destroyed before they sync, the transaction never happened.
 
-### 2. The "Happy Path" Network
-* **The State:** The app assumes that once an offline packet is received, the receiver will eventually find the internet.
-* **The Risk:** There is no local database (CoreData/Realm) caching the received blobs yet. If the app crashes or is force-closed after receiving money but *before* syncing, that transaction is gone.
-* **The Fix:** We are building a persistent `OfflineTxStore` that survives app launches.
-
-### 3. Mainnet Configuration
-* **The State:** The code is currently pointed at **Zcash Mainnet** to prove real-world viability.
-* **The Warning:** **DO NOT use this with your life savings.** While the cryptography is standard, the app's error handling is experimental. Use a wallet with <$5 worth of ZEC for testing.
+### 2. Mainnet vs Testnet
+* **Current Status:** The code is currently configured for **Zcash Mainnet** in the repo, but we are switching to **Testnet** for Phase 3 development to allow safe, cost-free testing of the broadcasting logic.
+* **Warning:** Do not use with significant funds until Phase 6 is complete.
 
 ---
 
@@ -58,9 +68,9 @@ We are building this in the open. If you are testing ZECer, you must understand 
 
 * **Language:** Swift 5
 * **Framework:** SwiftUI + Combine
+* **Database:** Core Data
 * **Cryptography:** Zcash SDK (v2.4.2)
 * **Connectivity:** CoreBluetooth (Central & Peripheral Modes)
-* **Feedback:** CoreHaptics
 
 ## 🚀 Getting Started
 
@@ -71,9 +81,9 @@ We are building this in the open. If you are testing ZECer, you must understand 
 2.  **Dependencies:**
     Open `ZECer.xcodeproj` in Xcode 15+. Wait for Swift Package Manager to resolve `ZcashLightClientKit`.
 3.  **Hardware Required:**
-    You must use **two physical iPhones**. The BLE stack does not function on the iOS Simulator.
+    Two physical iPhones are required to test the BLE transport layer.
 4.  **Sanitize:**
-    Check `ContentView.swift`. Ensure you are not committing any real seed phrases in the `onAppear` block.
+    Check `ContentView.swift`. Ensure you are not committing any real seed phrases.
 
 ---
 

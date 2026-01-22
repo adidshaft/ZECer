@@ -16,25 +16,30 @@ extension Color {
 }
 
 struct ContentView: View {
+    // 1. SECURE SEED: Receive from the secure onboarding flow
+    @Environment(\.seedPhraseContext) var seedPhrase
+    
+    // 2. STATE OBJECTS
     @StateObject var zcash = ZcashEngine()
     @StateObject var bleService = BLEService()
+    @StateObject var txManager = TxManager.shared
     
-    // UI State
+    // 3. UI STATE
     @State private var amount: String = ""
     @State private var dragOffset: CGSize = .zero
     @State private var isSending = false
     @State private var showReceiveMode = false
-    @State private var pulseScale: CGFloat = 1.0
+    @State private var showHistory = false // Controls the Activity Sheet
     
-    // Haptics
+    // 4. HAPTICS
     @State private var engine: CHHapticEngine?
     
     var body: some View {
         ZStack {
-            // 1. Background
+            // Background
             Color.darkSlate.edgesIgnoringSafeArea(.all)
             
-            // 2. Ambient Glow (Subtle Background Animation)
+            // Ambient Glow
             Circle()
                 .fill(Color.zcashGold.opacity(0.1))
                 .frame(width: 300, height: 300)
@@ -42,26 +47,50 @@ struct ContentView: View {
                 .offset(x: -100, y: -200)
             
             VStack(spacing: 0) {
-                // MARK: - Header (Sync Fuel Gauge)
-                // MARK: - Header (Sync Fuel Gauge)
+                // MARK: - HEADER
                 HStack {
-                    // REPLACED: Old Text Header -> New Logo Image
-                    Image("ZecerLogo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(height: 40) // Adjust height to fit nicely
-                        .shadow(color: .zcashGold.opacity(0.6), radius: 8, x: 0, y: 0) // Glowing effect
+                    // LEFT: Activity / History Button
+                    ZStack(alignment: .topTrailing) {
+                        Button(action: { showHistory = true }) {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .font(.system(size: 20))
+                                .foregroundColor(.white.opacity(0.6))
+                                .padding(10)
+                                .background(Color.white.opacity(0.1))
+                                .clipShape(Circle())
+                        }
+                        
+                        // Red Badge for Pending Txs
+                        if !txManager.pendingTxs.isEmpty {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 10, height: 10)
+                                .offset(x: 2, y: -2)
+                        }
+                    }
                     
                     Spacer()
                     
-                    // Sync Status Pill (Kept exactly the same)
+                    // CENTER: Logo
+                    HStack(spacing: 6) {
+                        Image(systemName: "bolt.shield.fill")
+                            .foregroundColor(.zcashGold)
+                        Text("ZECer")
+                            .font(.system(.headline, design: .rounded))
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                    }
+                    
+                    Spacer()
+                    
+                    // RIGHT: Sync Status Pill
                     HStack(spacing: 6) {
                         Circle()
                             .fill(zcash.isSynced ? Color.neonGreen : Color.orange)
                             .frame(width: 8, height: 8)
                             .shadow(color: zcash.isSynced ? .neonGreen : .orange, radius: 4)
                         
-                        Text(zcash.isSynced ? "READY" : "SYNCING...")
+                        Text(zcash.isSynced ? "READY" : "SYNCING")
                             .font(.system(size: 10, weight: .bold, design: .monospaced))
                             .foregroundColor(.white.opacity(0.8))
                     }
@@ -81,7 +110,7 @@ struct ContentView: View {
                     ReceiveRadarView(bleService: bleService)
                         .transition(.opacity.combined(with: .scale))
                 } else {
-                    // MARK: - SEND MODE (The "Check")
+                    // SEND MODE (The "Check")
                     VStack(spacing: 30) {
                         
                         // Balance Display
@@ -103,12 +132,12 @@ struct ContentView: View {
                         
                         // The Physical "Check" Card
                         ZStack {
-                            // Card Glow
+                            // Glow
                             RoundedRectangle(cornerRadius: 24)
                                 .fill(Color.black)
                                 .shadow(color: Color.zcashGold.opacity(0.3), radius: 20, x: 0, y: 10)
                             
-                            // Card Border
+                            // Border
                             RoundedRectangle(cornerRadius: 24)
                                 .strokeBorder(
                                     LinearGradient(gradient: Gradient(colors: [.zcashGold, .zcashGold.opacity(0.1)]), startPoint: .topLeading, endPoint: .bottomTrailing),
@@ -161,13 +190,12 @@ struct ContentView: View {
                         }
                         .frame(height: 220)
                         .padding(.horizontal)
-                        .offset(y: dragOffset.height) // Physics Animation
+                        .offset(y: dragOffset.height) // Physics
                         .rotation3DEffect(.degrees(Double(dragOffset.height / 10)), axis: (x: 1, y: 0, z: 0))
                         .opacity(isSending ? 0 : 1)
                         .gesture(
                             DragGesture()
                                 .onChanged { value in
-                                    // Only allow dragging UP
                                     if value.translation.height < 0 {
                                         self.dragOffset = value.translation
                                         prepareHaptics()
@@ -175,10 +203,8 @@ struct ContentView: View {
                                 }
                                 .onEnded { value in
                                     if value.translation.height < -150 {
-                                        // SWIPED UP -> SEND!
                                         playSoundAndSend()
                                     } else {
-                                        // Snap back
                                         withAnimation(.spring()) {
                                             self.dragOffset = .zero
                                         }
@@ -201,6 +227,14 @@ struct ContentView: View {
                             }
                             .opacity(amount.isEmpty ? 0 : 1)
                         }
+                        
+                        // DEBUG BUTTON (Remove in Production)
+                        Button("DEBUG: Simulate Received Cash") {
+                            TxManager.shared.saveIncoming(rawHex: "00000FAKE", amount: 0.5, memo: "Test Payment")
+                        }
+                        .font(.caption)
+                        .foregroundColor(.gray.opacity(0.5))
+                        .padding(.top, 10)
                     }
                     .transition(.move(edge: .bottom))
                 }
@@ -230,6 +264,8 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity)
                         .foregroundColor(showReceiveMode ? .neonGreen : .gray)
                     }
+                    .font(.caption)
+                    .foregroundColor(.gray)
                 }
                 .padding(.top, 20)
                 .padding(.bottom, 40)
@@ -238,11 +274,15 @@ struct ContentView: View {
             }
         }
         .onAppear(perform: prepareHapticsEngine)
-        // INITIALIZE THE WALLET ON LOAD
+        // INITIALIZE ENGINE WITH SECURE SEED
         .onAppear {
-            // NOTE: In production, fetch this from Keychain!
-            // For now, this is where the seed enters the app securely (not hardcoded deep in the engine)
-            zcash.startEngine(seedPhrase: "YOUR_REAL_SEED_PHRASE_HERE_OR_FROM_KEYCHAIN")
+            if !seedPhrase.isEmpty {
+                zcash.startEngine(seedPhrase: seedPhrase)
+            }
+        }
+        // PRESENT HISTORY SHEET
+        .sheet(isPresented: $showHistory) {
+            ActivityView(zcashEngine: zcash)
         }
     }
     
@@ -251,31 +291,31 @@ struct ContentView: View {
     func playSoundAndSend() {
         guard let value = Double(amount) else { return }
         
-        // 1. Visual Animation: Card flies away
         withAnimation(.easeOut(duration: 0.4)) {
             self.dragOffset = CGSize(width: 0, height: -600)
             self.isSending = true
         }
         
-        // 2. Haptic "Thud"
         playHapticSuccess()
         
-        // 3. Trigger Logic
         Task {
             do {
-                // Mock Delay for "Signing" visuals
                 try await Task.sleep(nanoseconds: 500_000_000)
                 
                 let rawTx = try await zcash.createProposal(amount: value, toAddress: "dummy")
                 
-                // Hardware Sign (Simulated wrapper)
+                // 1. NEW: Save to History immediately
+                DispatchQueue.main.async {
+                    txManager.saveOutgoing(amount: value, memo: "Offline Transfer to Peer")
+                }
+                
+                // Hardware Sign & Broadcast
                 let signature = try await HardwareSigner.shared.signPayload(data: rawTx)
                 let packet = signature + "|||".data(using: String.Encoding.utf8)! + rawTx
                 
-                // Blast via Bluetooth
                 bleService.startSending(data: packet)
                 
-                // Reset UI after delay
+                // Reset UI
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                     withAnimation {
                         self.amount = ""
@@ -285,7 +325,7 @@ struct ContentView: View {
                 }
             } catch {
                 print("Send Failed: \(error)")
-                withAnimation { self.dragOffset = .zero } // Reset on fail
+                withAnimation { self.dragOffset = .zero }
             }
         }
     }
@@ -302,14 +342,12 @@ struct ContentView: View {
     }
     
     func prepareHaptics() {
-        // Light vibration while dragging
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.prepare()
         generator.impactOccurred()
     }
     
     func playHapticSuccess() {
-        // Heavy "Cash" Thud
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
     }
@@ -331,7 +369,6 @@ struct ReceiveRadarView: View {
                 .tracking(2)
             
             ZStack {
-                // Radar Waves
                 ForEach(0..<3) { i in
                     Circle()
                         .stroke(Color.neonGreen.opacity(0.3), lineWidth: 2)
@@ -346,7 +383,6 @@ struct ReceiveRadarView: View {
                         )
                 }
                 
-                // Center Icon
                 Circle()
                     .fill(Color.neonGreen.opacity(0.1))
                     .frame(width: 120, height: 120)
@@ -364,7 +400,6 @@ struct ReceiveRadarView: View {
             }
             
             if bleService.progress > 0 {
-                // Progress Bar
                 VStack {
                     Text("\(Int(bleService.progress * 100))%")
                         .font(.largeTitle)
