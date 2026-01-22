@@ -1,0 +1,25 @@
+# Xcode
+.DS_Store
+*/build/
+*.derivedData
+*.uppercased
+*.role
+*.swp
+*~.nib
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.hmap
+*.xccheckout
+*.moved-aside
+DerivedData
+*.hmap
+*.ipa
+*.xcuserstate
+
+# Swift Package Manager
+.build/
+
+# User Settings (Important)
+xcuserdata/
