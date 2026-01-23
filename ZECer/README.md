@@ -1,4 +1,4 @@
-# 🛡️ ZECer: The Offline Cash Protocol
+# 🛡️ ZECer: Offline Shielded Cash 💸
 
 ![Platform](https://img.shields.io/badge/Platform-iOS-black?logo=apple)
 ![Stack](https://img.shields.io/badge/Tech-SwiftUI_%7C_CoreBluetooth_%7C_ZcashSDK-orange)
@@ -6,86 +6,95 @@
 
 > **"Digital cash should feel like physical cash."**
 
-ZECer is a proof-of-concept iOS application that re-imagines **offline, peer-to-peer Zcash transactions**. It combines skeuomorphic design, physics-based gestures, and heavy haptics to restore the visceral feeling of handing value to another person—without needing an internet connection.
+**ZECer** is a proof-of-concept iOS application that enables **offline, peer-to-peer, privacy-preserving payments** using the Zcash protocol. It allows users to transact value physically—like handing over a $20 bill—without needing an active internet connection at the moment of trade.
 
 ---
 
-## 🗺️ Roadmap to Production
+## 🏗 Current Product State
 
-We are building ZECer in distinct phases, moving from "Visual Prototype" to "Real-World Protocol."
+ZECer is currently transitioning from a Testnet Simulation to a **Mainnet Alpha**. Below is the status of core capabilities:
 
-| Phase | Name | Goal | Key Tech | Status |
-| :--- | :--- | :--- | :--- | :--- |
-| **1** | **Security & Onboarding** | Secure keys with hardware encryption. | `Keychain`, `LocalAuthentication` | ✅ **Completed** |
-| **2** | **Persistence & Ledger** | Never lose data if the app crashes. | `CoreData`, `Combine` | ✅ **Completed** |
-| **3** | **Real Crypto Engine** | Remove mocks. Generate real ZK-Proofs. | `ZcashLightClientKit`, `Testnet` | 🚧 **In Progress** |
-| **4** | **Heavy Transport** | Send 4KB+ crypto payloads via BLE. | `CoreBluetooth`, Packet Chunking | 📅 Planned |
-| **5** | **The Handshake** | Encrypt the BLE tunnel itself. | `CryptoKit`, `ECDH` Key Exchange | 📅 Planned |
-| **6** | **Production Polish** | Compliance & App Store readiness. | Export Compliance, Error Handling | 📅 Planned |
-
----
-
-## 🌟 Core Features
-
-* **The "Z-Check" Interface:** A glowing, digital bearer instrument.
-* **Gesture Sending:** Swipe up to "flick" cash to a nearby device.
-* **Offline Activity Feed:** A local ledger that tracks your money before it hits the blockchain.
-* **True Offline Transport:** Slices large crypto transactions into Bluetooth LE (BLE) packets.
-* **Shielded by Default:** Built on `ZcashLightClientKit` (v2.4.2).
+| Feature Module | Status | Details |
+| :--- | :---: | :--- |
+| **Physical UI** | ✅ Ready | Skeuomorphic "Z-Bill" interface with drag-to-pay gestures. |
+| **Security Core** | ✅ Ready | Biometric (FaceID) protection and Keychain-backed Seed Vault. |
+| **Local Ledger** | ✅ Ready | CoreData persistence for offline history and state management. |
+| **Network Engine** | 🔄 Migrating | Switching from Docker Testnet to **Zcash Mainnet**. |
+| **Crypto Engine** | 🚧 In Progress | Implementing the "Cold Signer" to generate proofs without broadcasting. |
+| **Transport** | 🚧 In Progress | Optimizing Bluetooth (BLE) for heavy 4KB+ crypto payloads. |
 
 ---
 
-## 📊 Current Product State
+## 🛣️ Roadmap
 
-ZECer is currently transitioning from **Alpha** (Mock) to **Beta** (Real Crypto).
+We are currently executing **Phase 3**.
 
-| Component | Status | Maturity | Notes |
-| :--- | :--- | :--- | :--- |
-| **Core Wallet Engine** | 🟢 **Online** | **Alpha** | Syncs with Mainnet. Currently implementing "Offline Signing" flow. |
-| **Offline Transport** | 🟢 **Working** | **Beta** | BLE chunking works for small payloads. Scaling for large ZK-proofs is next. |
-| **User Interface** | 🟢 **Polished** | **Release Candidate** | Physics, haptics, and animations are production-grade. |
-| **Data Persistence** | 🟢 **Active** | **Beta** | `TxManager` saves all transactions to CoreData. History persists across restarts. |
-| **Key Security** | 🟢 **Secured** | **Beta** | Seed phrases are encrypted in the iOS Keychain and protected by FaceID. |
-
----
-
-## 🔍 Transparency: Architectural Assumptions
-
-We believe in radical transparency. If you are testing ZECer, understand these current architectural decisions:
-
-### 1. The "Pending" State
-* **The Logic:** Transactions sent offline are stored locally as "Pending."
-* **The Reality:** The receiver acts as a "Mule." They carry the signed transaction blob until they find the internet, at which point they broadcast it to the Zcash network.
-* **The Risk:** If the receiver's phone is destroyed before they sync, the transaction never happened.
-
-### 2. Mainnet vs Testnet
-* **Current Status:** The code is currently configured for **Zcash Mainnet** in the repo, but we are switching to **Testnet** for Phase 3 development to allow safe, cost-free testing of the broadcasting logic.
-* **Warning:** Do not use with significant funds until Phase 6 is complete.
+| Phase | Module | Goals & Deliverables | Status |
+| :--- | :--- | :--- | :---: |
+| **1** | **Foundation** | Secure the keys and build the physical user interface. <br>• *FaceID Auth, Seed Vault, Onboarding.* | ✅ Done |
+| **2** | **Persistence** | Ensure money isn't lost if the app crashes. <br>• *Local Ledger, Activity Feed, Pending States.* | ✅ Done |
+| **3** | **Integrity Core** | **(Current Focus)** Connect to Mainnet & enable Offline-Readiness. <br>• **Mainnet Switch:** Connect to official `lightwalletd` servers. <br>• **Shielding Bridge:** Auto-detect Transparent funds and provide "One-Tap Shielding" to make them usable offline. <br>• **Cold Signer:** Extract raw Hex Transaction blobs without broadcasting. | 🚧 In Progress |
+| **4** | **Heavy Transport** | Move heavy crypto payloads (4KB - 10KB) reliably over thin air. <br>• **Packetizer:** Split Hex blobs into ~512-byte chunks. <br>• **Reassembler:** Logic to stitch chunks back into a valid Tx. | ⏳ Planned |
+| **5** | **Privacy** | Prevent snooping on the Bluetooth layer. <br>• **ECDH Handshake:** Generate shared secrets between devices. <br>• **Transport Encrypt:** Encrypt packets before transmission. | ⏳ Planned |
+| **6** | **Polish** | App Store Readiness. <br>• **Export Compliance:** Encryption documentation. <br>• **Safety Rails:** Backup warnings and error handling. | ⏳ Planned |
 
 ---
 
-## 🛠 Tech Stack
+## 🔍 Transparency: The Offline Integrity Model
 
-* **Language:** Swift 5
-* **Framework:** SwiftUI + Combine
-* **Database:** Core Data
-* **Cryptography:** Zcash SDK (v2.4.2)
-* **Connectivity:** CoreBluetooth (Central & Peripheral Modes)
+In a decentralized system without a central server to check balances, offline payments face the **Double Spending** problem (e.g., *If Alice is offline, what stops her from signing a transaction to Bob, and 5 minutes later signing the exact same funds to Charlie?*).
 
-## 🚀 Getting Started
+ZECer addresses this using **Maximum Practical Integrity** via the **"Mule" Protocol**.
 
-1.  **Clone the Repo:**
-    ```bash
-    git clone [https://github.com/adidshaft/ZECer.git](https://github.com/adidshaft/ZECer.git)
-    ```
-2.  **Dependencies:**
-    Open `ZECer.xcodeproj` in Xcode 15+. Wait for Swift Package Manager to resolve `ZcashLightClientKit`.
-3.  **Hardware Required:**
-    Two physical iPhones are required to test the BLE transport layer.
-4.  **Sanitize:**
-    Check `ContentView.swift`. Ensure you are not committing any real seed phrases.
+### 1. The "Mule" Protocol (Receiver Custody)
+We do not rely on the Sender to broadcast the transaction. instead, we enforce **Receiver Custody**.
+
+* **The Transfer:** The Sender (Offline) generates a valid Zero-Knowledge Proof and signs the transaction. This heavy data blob (containing the unique **Nullifier**) is transferred via Bluetooth/NFC to the Receiver.
+* **The Verification:** The Receiver's app locally validates the cryptographic proofs. It confirms: *"If this data reaches the internet, it is valid money."*
+* **The "Mule":** The Receiver takes custody of the signed blob. They act as the "Mule," carrying the data until they regain internet connectivity to broadcast it.
+* **Game Theory:** Since the Receiver wants to get paid, they have the financial incentive to upload the transaction immediately, claiming the Nullifier on the blockchain and invalidating any other attempts by the Sender to double-spend.
+
+### 2. Hardware Limitations (Why not Secure Enclave?)
+We explicitly **do not** use the iPhone Secure Enclave or Android TEE to enforce "counters" for double-spending prevention. This is due to two hard technical limitations:
+
+* **Math Mismatch:** The Secure Enclave supports NIST P-256 curves. Zcash relies on **Jubjub** and **BLS12-381** curves. The hardware physically lacks the instructions to perform the required math.
+* **The "Evil Twin" Attack:** Even if the hardware supported the math, a user could import the same Seed Phrase into two different devices. Device A would have no knowledge of Device B's state, allowing the user to sign conflicting transactions.
+
+**Verdict:** We rely on **Cryptographic Proofs** for validity and **The Mule Protocol** for settlement integrity.
 
 ---
 
-### 📜 License
-MIT License. Built for the Cypherpunk future.
+## 🏗️ Tech Stack
+
+* **Language:** Swift 5 (SwiftUI)
+* **Engine:** `ZcashLightClientKit` (Rust integration via FFI)
+* **Consensus:** Zcash Mainnet (Sapling/Orchard Pools)
+* **Database:** CoreData (Local Ledger) & SQLite (SDK Storage)
+* **Connectivity:** `MultipeerConnectivity` (AirDrop-style discovery) & CoreBluetooth.
+
+---
+
+## 🚀 Setup & Installation (Mainnet Alpha)
+
+**⚠️ WARNING: Real Money**
+This branch is configured for **Zcash Mainnet**.
+1.  The keys generated are **REAL**.
+2.  Funds sent to this wallet are **REAL**.
+3.  If you delete the app without backing up your seed phrase, **FUNDS ARE LOST FOREVER.**
+
+### Prerequisites
+* Xcode 15+
+* Physical iPhone (Simulators struggle with FaceID and Camera)
+* ~500MB free space (for Compact Block cache)
+
+### Installation
+1.  Clone the repo.
+2.  Run `pod install` (if using CocoaPods) or let Swift Package Manager resolve dependencies.
+3.  Verify `ZcashEngine.swift` is pointing to `mainnet.lightwalletd.com`.
+4.  Build and Run on a physical device.
+
+---
+
+## 📄 License
+
+MIT License. Open Source for the Zcash Community.
