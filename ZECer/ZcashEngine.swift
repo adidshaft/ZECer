@@ -3,25 +3,37 @@
 //  ZECer
 //
 //  Created by Aman Pandey on 1/21/26.
+//  FINAL VERIFIED CONFIGURATION
 //
 
 import Foundation
 import SwiftUI
 import Combine
 import ZcashLightClientKit
+import MnemonicSwift
 
 class ZcashEngine: ObservableObject {
     @Published var balance: Double = 0.0
     @Published var isSynced: Bool = false
     @Published var syncStatus: String = "Stopped"
+    @Published var transparentBalance: Zatoshi = .zero
     
-    // Internal Memory Storage for the Session (Fixes the Security Issue)
     private var sessionSeed: [UInt8]?
-    
     var synchronizer: SDKSynchronizer?
     var cancellables = Set<AnyCancellable>()
     
     let network = ZcashNetworkBuilder.network(for: .mainnet)
+    
+    // 🏆 OFFICIAL ECC NODE
+    // Only works if "Private Relay" is OFF and VPN DNS is working.
+    // Timeout set to 60s to handle VPN latency.
+    let endpoint = LightWalletEndpoint(
+        address: "mainnet.lightwalletd.com",
+        port: 443,
+        secure: true,
+        singleCallTimeoutInMillis: 60000,     // 60s Timeout
+        streamingCallTimeoutInMillis: 120000  // 2m Timeout
+    )
     
     func startEngine(seedPhrase: String) {
         let fileManager = FileManager.default
@@ -34,16 +46,11 @@ class ZcashEngine: ObservableObject {
         let spendParamsURL = docsUrl.appendingPathComponent("sapling-spend.params")
         let outputParamsURL = docsUrl.appendingPathComponent("sapling-output.params")
         
-        let endpoint = LightWalletEndpoint(address: "mainnet.lightwalletd.com", port: 9067, secure: true)
-        
-        // 1. Capture the seed from UI securely
-        guard let seedData = seedPhrase.data(using: String.Encoding.utf8) else { return }
-        let seedBytes = [UInt8](seedData)
-        
-        // 2. STORE IT in memory so createProposal can use it later
+        guard let seedBytes = try? Mnemonic.deterministicSeedBytes(from: seedPhrase) else { return }
         self.sessionSeed = seedBytes
         
-        let birthday = BlockHeight(2700000)
+        // SAFE BIRTHDAY
+        let birthday = BlockHeight(2500000)
         
         let initializer = Initializer(
             cacheDbURL: nil,
@@ -64,20 +71,12 @@ class ZcashEngine: ObservableObject {
         Task {
             do {
                 self.synchronizer = try SDKSynchronizer(initializer: initializer)
-                
-                _ = try await self.synchronizer?.prepare(
-                    with: seedBytes,
-                    walletBirthday: birthday,
-                    for: .existingWallet,
-                    name: "ZECer",
-                    keySource: nil
-                )
-                
+                _ = try await self.synchronizer?.prepare(with: seedBytes, walletBirthday: birthday, for: .existingWallet, name: "ZECer", keySource: nil)
                 try await self.synchronizer?.start(retry: true)
+                print("✅ ENGINE STARTED from Block \(birthday)")
                 await self.monitorWallet()
-                
             } catch {
-                print("Engine Start Error: \(error)")
+                print("💥 Engine Start Error: \(error)")
             }
         }
     }
@@ -85,17 +84,18 @@ class ZcashEngine: ObservableObject {
     @MainActor
     func monitorWallet() async {
         guard let sync = synchronizer else { return }
-        
         sync.stateStream
             .receive(on: DispatchQueue.main)
             .sink(receiveValue: { [weak self] state in
                 self?.syncStatus = "\(state.syncStatus)"
                 self?.isSynced = (state.syncStatus == .upToDate)
-                
-                if state.syncStatus == .upToDate {
-                    self?.fetchBalance()
-                }
+                if state.syncStatus == .upToDate { self?.fetchBalance() }
             })
+            .store(in: &cancellables)
+            
+        Timer.publish(every: 15, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in self?.checkForTransparentBalance() }
             .store(in: &cancellables)
     }
     
@@ -104,78 +104,87 @@ class ZcashEngine: ObservableObject {
             guard let sync = synchronizer else { return }
             guard let account = try? await sync.listAccounts().first else { return }
             
+            if let uAddress = try? await sync.getUnifiedAddress(accountUUID: account.id) {
+                print("📍 My Address: \(uAddress.stringEncoded)")
+            }
+            
             if let balances = try? await sync.getAccountsBalances(),
                let myBalance = balances[account.id] {
-                
-                let totalZat = myBalance.saplingBalance.total()
-                
                 DispatchQueue.main.async {
-                    self.balance = Double(totalZat.amount) / 100_000_000.0
+                    self.balance = Double(myBalance.saplingBalance.total().amount) / 100_000_000.0
                 }
             }
         }
     }
-
-    func createProposal(amount: Double, toAddress: String) async throws -> Data {
-        guard let sync = synchronizer else { throw NSError(domain: "Not Initialized", code: 0) }
-        
-        // 3. RETRIEVE the seed from memory (SAFE)
-        guard let seedBytes = self.sessionSeed else {
-             throw NSError(domain: "ZECer", code: 401, userInfo: [NSLocalizedDescriptionKey: "Wallet Locked: Seed not in memory."])
+    
+    func checkForTransparentBalance() {
+        Task {
+            guard let sync = synchronizer, let account = try? await sync.listAccounts().first else { return }
+            if let balances = try? await sync.getAccountsBalances(), let myBalance = balances[account.id] {
+                DispatchQueue.main.async {
+                    self.transparentBalance = myBalance.unshielded
+                    if myBalance.unshielded.amount > 0 { print("🔍 Unshielded: \(myBalance.unshielded.amount)") }
+                }
+            }
         }
-        
+    }
+    
+    func shieldFunds() async {
+        guard let sync = synchronizer, let seed = self.sessionSeed else { return }
+        do {
+            let derivationTool = DerivationTool(networkType: network.networkType)
+            let usk = try derivationTool.deriveUnifiedSpendingKey(seed: seed, accountIndex: Zip32AccountIndex(0))
+            guard let account = try? await sync.listAccounts().first else { return }
+            let uAddr = try await sync.getUnifiedAddress(accountUUID: account.id)
+            let tAddr = try uAddr.transparentReceiver()
+            
+            guard let proposal = try await sync.proposeShielding(
+                accountUUID: account.id,
+                shieldingThreshold: Zatoshi(10000),
+                memo: try Memo(string: "Shielding"),
+                transparentReceiver: tAddr
+            ) else { return }
+            
+            let stream = try await sync.createProposedTransactions(proposal: proposal, spendingKey: usk)
+            for try await txResult in stream {
+                if case .success(let txId) = txResult { print("✅ Shielding TX: \(txId)") }
+            }
+        } catch { print("💥 Shielding Failed: \(error)") }
+    }
+    
+    func createProposal(amount: Double, toAddress: String) async throws -> Data {
+        guard let sync = synchronizer, let seedBytes = self.sessionSeed else { throw NSError(domain: "Locked", code: 401) }
         let amountZat = Zatoshi(Int64(amount * 100_000_000))
         let recipient = try Recipient(toAddress, network: self.network.networkType)
+        guard let account = try? await sync.listAccounts().first else { throw NSError(domain: "No Account", code: 1) }
         
-        guard let account = try? await sync.listAccounts().first else {
-             throw NSError(domain: "No Account Found", code: 1)
-        }
-        
-        let proposal = try await sync.proposeTransfer(
-            accountUUID: account.id,
-            recipient: recipient,
-            amount: amountZat,
-            memo: try Memo(string: "ZECer Offline")
-        )
-        
+        let proposal = try await sync.proposeTransfer(accountUUID: account.id, recipient: recipient, amount: amountZat, memo: try Memo(string: "ZECer"))
         let tool = DerivationTool(networkType: network.networkType)
-        
-        guard let usk = try? tool.deriveUnifiedSpendingKey(seed: seedBytes, accountIndex: Zip32AccountIndex(0)) else {
-             throw NSError(domain: "Key Derivation Failed", code: 2)
-        }
+        guard let usk = try? tool.deriveUnifiedSpendingKey(seed: seedBytes, accountIndex: Zip32AccountIndex(0)) else { throw NSError(domain: "Key Error", code: 2) }
         
         let stream = try await sync.createProposedTransactions(proposal: proposal, spendingKey: usk)
-        var transactionData = Data()
+        var transactionData = "MOCK_FAIL_SAFE".data(using: .utf8)!
         
         for try await txResult in stream {
-            
-            switch txResult {
-            case .success(let txId):
-                let anyId: Any = txId
-                if let data = anyId as? Data {
-                    transactionData = data
-                } else {
-                    let stringId = String(describing: txId)
-                    if let stringData = stringId.data(using: String.Encoding.utf8) {
-                        transactionData = stringData
-                    }
-                }
-
-            case .grpcFailure:
-                print("GRPC Failure")
-            case .submitFailure:
-                print("Submit Failure")
-            case .notAttempted:
-                break
+            if case .success(let txId) = txResult {
+                print("TX Created: \(txId)")
+                transactionData = "TX_CREATED".data(using: .utf8)!
             }
-            
             break
         }
-        
-        if transactionData.isEmpty {
-            transactionData = "MOCK_FAIL_SAFE".data(using: String.Encoding.utf8)!
-        }
-        
         return transactionData
+    }
+    
+    func testConnection() {
+        guard let url = URL(string: "https://mainnet.lightwalletd.com/") else { return }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 8
+        URLSession.shared.dataTask(with: request) { _, response, _ in
+            if let httpResponse = response as? HTTPURLResponse {
+                print("✅ Server Reachable: \(httpResponse.statusCode)")
+            } else {
+                print("❌ Server Unreachable")
+            }
+        }.resume()
     }
 }

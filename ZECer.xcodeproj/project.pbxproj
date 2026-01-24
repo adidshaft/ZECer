@@ -10,15 +10,29 @@
 		AB7FE3532F2123EF009A0119 /* ZcashLightClientKit in Frameworks */ = {isa = PBXBuildFile; productRef = AB7FE3522F2123EF009A0119 /* ZcashLightClientKit */; };
 		AB7FE3562F21243B009A0119 /* SwiftProtobuf in Frameworks */ = {isa = PBXBuildFile; productRef = AB7FE3552F21243B009A0119 /* SwiftProtobuf */; };
 		AB7FE3582F21243B009A0119 /* SwiftProtobufPluginLibrary in Frameworks */ = {isa = PBXBuildFile; productRef = AB7FE3572F21243B009A0119 /* SwiftProtobufPluginLibrary */; };
+		ABFCC9FC2F2262FB00F4DC0B /* MnemonicSwift in Frameworks */ = {isa = PBXBuildFile; productRef = ABFCC9FB2F2262FB00F4DC0B /* MnemonicSwift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		AB7FE3432F212005009A0119 /* ZECer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ZECer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		ABFCC9FE2F23441900F4DC0B /* Exceptions for "ZECer" folder in "ZECer" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = AB7FE3422F212005009A0119 /* ZECer */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		AB7FE3452F212005009A0119 /* ZECer */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				ABFCC9FE2F23441900F4DC0B /* Exceptions for "ZECer" folder in "ZECer" target */,
+			);
 			path = ZECer;
 			sourceTree = "<group>";
 		};
@@ -29,6 +43,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ABFCC9FC2F2262FB00F4DC0B /* MnemonicSwift in Frameworks */,
 				AB7FE3582F21243B009A0119 /* SwiftProtobufPluginLibrary in Frameworks */,
 				AB7FE3532F2123EF009A0119 /* ZcashLightClientKit in Frameworks */,
 				AB7FE3562F21243B009A0119 /* SwiftProtobuf in Frameworks */,
@@ -77,6 +92,7 @@
 				AB7FE3522F2123EF009A0119 /* ZcashLightClientKit */,
 				AB7FE3552F21243B009A0119 /* SwiftProtobuf */,
 				AB7FE3572F21243B009A0119 /* SwiftProtobufPluginLibrary */,
+				ABFCC9FB2F2262FB00F4DC0B /* MnemonicSwift */,
 			);
 			productName = ZECer;
 			productReference = AB7FE3432F212005009A0119 /* ZECer.app */;
@@ -109,6 +125,7 @@
 			packageReferences = (
 				AB7FE3512F2123EF009A0119 /* XCRemoteSwiftPackageReference "ZcashLightClientKit" */,
 				AB7FE3542F21243B009A0119 /* XCRemoteSwiftPackageReference "swift-protobuf" */,
+				ABFCC9FA2F2262FB00F4DC0B /* XCRemoteSwiftPackageReference "MnemonicSwift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = AB7FE3442F212005009A0119 /* Products */;
@@ -271,6 +288,8 @@
 				DEVELOPMENT_TEAM = JP4HU7X6G7;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ZECer/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "";
 				INFOPLIST_KEY_NFCReaderUsageDescription = "Used to exchange ZEC transactions offline.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Used to sign transactions with the Secure Enclave.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -307,6 +326,8 @@
 				DEVELOPMENT_TEAM = JP4HU7X6G7;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ZECer/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "";
 				INFOPLIST_KEY_NFCReaderUsageDescription = "Used to exchange ZEC transactions offline.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Used to sign transactions with the Secure Enclave.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -372,6 +393,14 @@
 				minimumVersion = 1.33.3;
 			};
 		};
+		ABFCC9FA2F2262FB00F4DC0B /* XCRemoteSwiftPackageReference "MnemonicSwift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Electric-Coin-Company/MnemonicSwift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.2.5;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -389,6 +418,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = AB7FE3542F21243B009A0119 /* XCRemoteSwiftPackageReference "swift-protobuf" */;
 			productName = SwiftProtobufPluginLibrary;
+		};
+		ABFCC9FB2F2262FB00F4DC0B /* MnemonicSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = ABFCC9FA2F2262FB00F4DC0B /* XCRemoteSwiftPackageReference "MnemonicSwift" */;
+			productName = MnemonicSwift;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
