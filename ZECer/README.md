@@ -1,100 +1,124 @@
-# 🛡️ ZECer: Offline Shielded Cash 💸
+# 📘 ZECer Connectivity & Network Troubleshooting Report
 
-![Platform](https://img.shields.io/badge/Platform-iOS-black?logo=apple)
-![Stack](https://img.shields.io/badge/Tech-SwiftUI_%7C_CoreBluetooth_%7C_ZcashSDK-orange)
-![Status](https://img.shields.io/badge/Status-Alpha_Prototype-yellow)
-
-> **"Digital cash should feel like physical cash."**
-
-**ZECer** is a proof-of-concept iOS application that enables **offline, peer-to-peer, privacy-preserving payments** using the Zcash protocol. It allows users to transact value physically—like handing over a $20 bill—without needing an active internet connection at the moment of trade.
+**Project:** ZECer (Native iOS Zcash Wallet)  
+**Tech Stack:** Swift, SwiftUI, ZcashLightClientKit (ECC SDK)  
+**Environment:** iOS 18+, Physical iPhone (India Region)  
+**Network Constraints:** High-Restriction ISP Environment (Deep Packet Inspection / DNS Blocking / Active Probing)  
+**Date:** January 2026
 
 ---
 
-## 🏗 Current Product State
+## 1. Executive Summary
+The objective was to build a native iOS Zcash wallet capable of syncing with the Mainnet. While the core application logic was successfully implemented, the project encountered severe network-level blockades.
 
-ZECer is currently transitioning from a Testnet Simulation to a **Mainnet Alpha**. Below is the status of core capabilities:
-
-| Feature Module | Status | Details |
-| :--- | :---: | :--- |
-| **Physical UI** | ✅ Ready | Skeuomorphic "Z-Bill" interface with drag-to-pay gestures. |
-| **Security Core** | ✅ Ready | Biometric (FaceID) protection and Keychain-backed Seed Vault. |
-| **Local Ledger** | ✅ Ready | CoreData persistence for offline history and state management. |
-| **Network Engine** | 🔄 Migrating | Switching from Docker Testnet to **Zcash Mainnet**. |
-| **Crypto Engine** | 🚧 In Progress | Implementing the "Cold Signer" to generate proofs without broadcasting. |
-| **Transport** | 🚧 In Progress | Optimizing Bluetooth (BLE) for heavy 4KB+ crypto payloads. |
+The troubleshooting process exhausted the entire OSI model, from Application layer timeouts to Transport layer encryption (Tor). We successfully bypassed the ISP using Tor, but failed at the protocol level due to Tor Exit Node blocking and the SDK's lack of compiled support for Onion Services.
 
 ---
 
-## 🛣️ Roadmap
+## 2. Inventory of Targets & Configurations
 
-We are currently executing **Phase 3**.
+Before detailing the chronology, here is the complete list of endpoints and settings tested.
 
-| Phase | Module | Goals & Deliverables | Status |
-| :--- | :--- | :--- | :---: |
-| **1** | **Foundation** | Secure the keys and build the physical user interface. <br>• *FaceID Auth, Seed Vault, Onboarding.* | ✅ Done |
-| **2** | **Persistence** | Ensure money isn't lost if the app crashes. <br>• *Local Ledger, Activity Feed, Pending States.* | ✅ Done |
-| **3** | **Integrity Core** | **(Current Focus)** Connect to Mainnet & enable Offline-Readiness. <br>• **Mainnet Switch:** Connect to official `lightwalletd` servers. <br>• **Shielding Bridge:** Auto-detect Transparent funds and provide "One-Tap Shielding" to make them usable offline. <br>• **Cold Signer:** Extract raw Hex Transaction blobs without broadcasting. | 🚧 In Progress |
-| **4** | **Heavy Transport** | Move heavy crypto payloads (4KB - 10KB) reliably over thin air. <br>• **Packetizer:** Split Hex blobs into ~512-byte chunks. <br>• **Reassembler:** Logic to stitch chunks back into a valid Tx. | ⏳ Planned |
-| **5** | **Privacy** | Prevent snooping on the Bluetooth layer. <br>• **ECDH Handshake:** Generate shared secrets between devices. <br>• **Transport Encrypt:** Encrypt packets before transmission. | ⏳ Planned |
-| **6** | **Polish** | App Store Readiness. <br>• **Export Compliance:** Encryption documentation. <br>• **Safety Rails:** Backup warnings and error handling. | ⏳ Planned |
+### 2.1 RPC Nodes & Endpoints Attempted
+| Node Name | Address / IP | Port | Protocol | Result |
+| :--- | :--- | :--- | :--- | :--- |
+| **ECC Testnet** | `lightwalletd.testnet.electriccoin.co` | 9067 | TCP/TLS | 🔴 SSL/ATS Fail |
+| **ECC Mainnet** | `mainnet.lightwalletd.com` | 443 | TCP/TLS | 🔴 Timeout / DNS Fail |
+| **Nighthawk** | `zcash.adityapk.com` | 443 | TCP/TLS | 🔴 Timeout |
+| **ZecRocks** | `mainnet.zec.rocks` | 443 | TCP/TLS | 🔴 Timeout |
+| **Infrastructure** | `lwd1.zcash-infra.com` | 443 | TCP/TLS | 🔴 Timeout |
+| **Asia Pacific** | `ap.lightwalletd.com` | 443 | TCP/TLS | 🔴 Timeout |
+| **ECC Direct IP** | `35.235.105.143` | 443 | TCP/TLS | 🔴 Blocked (Direct & Tor) |
+| **Nighthawk IP** | `5.9.61.233` | 443 | TCP/TLS | 🔴 Blocked (Tor Exit) |
+| **ZecRocks Onion**| `zcashnodesib... .onion` | 80 | Tor Hidden Service | 🔴 SDK Feature Missing |
 
----
-
-## 🔍 Transparency: The Offline Integrity Model
-
-In a decentralized system without a central server to check balances, offline payments face the **Double Spending** problem (e.g., *If Alice is offline, what stops her from signing a transaction to Bob, and 5 minutes later signing the exact same funds to Charlie?*).
-
-ZECer addresses this using **Maximum Practical Integrity** via the **"Mule" Protocol**.
-
-### 1. The "Mule" Protocol (Receiver Custody)
-We do not rely on the Sender to broadcast the transaction. instead, we enforce **Receiver Custody**.
-
-* **The Transfer:** The Sender (Offline) generates a valid Zero-Knowledge Proof and signs the transaction. This heavy data blob (containing the unique **Nullifier**) is transferred via Bluetooth/NFC to the Receiver.
-* **The Verification:** The Receiver's app locally validates the cryptographic proofs. It confirms: *"If this data reaches the internet, it is valid money."*
-* **The "Mule":** The Receiver takes custody of the signed blob. They act as the "Mule," carrying the data until they regain internet connectivity to broadcast it.
-* **Game Theory:** Since the Receiver wants to get paid, they have the financial incentive to upload the transaction immediately, claiming the Nullifier on the blockchain and invalidating any other attempts by the Sender to double-spend.
-
-### 2. Hardware Limitations (Why not Secure Enclave?)
-We explicitly **do not** use the iPhone Secure Enclave or Android TEE to enforce "counters" for double-spending prevention. This is due to two hard technical limitations:
-
-* **Math Mismatch:** The Secure Enclave supports NIST P-256 curves. Zcash relies on **Jubjub** and **BLS12-381** curves. The hardware physically lacks the instructions to perform the required math.
-* **The "Evil Twin" Attack:** Even if the hardware supported the math, a user could import the same Seed Phrase into two different devices. Device A would have no knowledge of Device B's state, allowing the user to sign conflicting transactions.
-
-**Verdict:** We rely on **Cryptographic Proofs** for validity and **The Mule Protocol** for settlement integrity.
+### 2.2 iOS Network "Tricks" & Settings Modified
+| Setting / Tool | Configuration | Result |
+| :--- | :--- | :--- |
+| **iCloud Private Relay** | **Disabled** (To prevent Apple routing interference) | 🔴 No Change |
+| **Limit IP Address Tracking** | **Disabled** (Wi-Fi Settings) | 🔴 No Change |
+| **Private Wi-Fi Address** | **Disabled** (MAC Address Randomization off) | 🔴 No Change |
+| **DNS Configuration** | Manual override to `8.8.8.8` (Google) & `1.1.1.1` | 🔴 Failed (ISP Intercept) |
+| **Airplane Mode Toggle** | Hard network reset between attempts | 🔴 No Change |
+| **USB Tethering** | Connected via Mac to bypass Wi-Fi radio stack | 🔴 No Change |
 
 ---
 
-## 🏗️ Tech Stack
+## 3. Detailed Troubleshooting Chronology
 
-* **Language:** Swift 5 (SwiftUI)
-* **Engine:** `ZcashLightClientKit` (Rust integration via FFI)
-* **Consensus:** Zcash Mainnet (Sapling/Orchard Pools)
-* **Database:** CoreData (Local Ledger) & SQLite (SDK Storage)
-* **Connectivity:** `MultipeerConnectivity` (AirDrop-style discovery) & CoreBluetooth.
+### Phase 1: Testnet Initialization
+**Objective:** Connect to Zcash Testnet.
+* **Result:** 🔴 **FAILED**
+* **Error:** `SSL Handshake Failed`. Apple ATS rejected the Testnet certificate chain.
+* **Decision:** Abandon Testnet for Mainnet.
+
+### Phase 2: Mainnet Stability (The "History" Crash)
+**Objective:** Prevent app crash on startup.
+* **Issue:** Default SDK settings attempted to scan 8 years of blockchain history (from Block 0), causing OOM (Out of Memory) crashes.
+* **Fix:** Implemented **"Birthday Fix"** (Hardcoded `BlockHeight(2750000)`).
+* **Result:** ✅ **SUCCESS** (Engine initialized).
+
+### Phase 3: The ISP Blockade (DPI & Timeouts)
+**Objective:** Complete gRPC handshake via direct connection.
+* **Targets:** All standard domains (`lightwalletd.com`, `zec.rocks`, `adityapk.com`).
+* **Result:** 🔴 **FAILED**
+* **Error:** `serviceGetInfoFailed(... timeOut)`.
+* **Analysis:** ISP Deep Packet Inspection (DPI) identified gRPC headers and dropped packets.
+
+### Phase 4: VPNs & Privacy Overlays
+**Objective:** Tunnel traffic to bypass DPI.
+* **Attempt 4.1 (Cloudflare WARP):** 🔴 FAILED.
+* **Attempt 4.2 (NordVPN Standard - UDP):** 🔴 FAILED (Latency >300ms triggered SDK timeout).
+* **Attempt 4.3 (NordVPN Obfuscated - TCP/Singapore):** 🔴 FAILED. Handshake failed via "Server not found" (DNS Leak).
+* **Attempt 4.4 (Nym Mixnet):** 🔴 FAILED. Mixnet latency was too high for gRPC keep-alive.
+
+### Phase 5: "Zashi" Config & DNS Hardening
+**Objective:** Replicate official wallet settings and fix DNS.
+* **Action:** Increased SDK timeouts to 60s/120s. Manually set DNS to 8.8.8.8. Disabled all Apple privacy proxies.
+* **The "Safari Test":** Visiting `https://mainnet.lightwalletd.com/` in Safari failed with **"Server cannot be found."**
+* **Conclusion:** ISP is intercepting DNS requests regardless of VPN settings on iOS.
+
+### Phase 6: The Cloudflare Bridge (Proxy)
+**Objective:** Use Cloudflare Workers to mask traffic.
+* **Attempt 6.1 (Standard):** 🔴 FAILED (`Error 1016: Origin DNS Error`). Cloudflare couldn't resolve Zcash domains.
+* **Attempt 6.2 (Direct IP):** 🔴 FAILED (`Error 1003`). Cloudflare forbids Direct IP access.
+* **Attempt 6.3 (Infra Node):** 🔴 FAILED. Cloudflare blocks crypto RPC ports on free tier.
+
+### Phase 7: The Tor Breakthrough
+**Objective:** Use embedded `Arti` Tor client.
+* **Result:** ✅ **SUCCESS**
+* **Log:** `arti_client::status: 100%: connecting successfully; directory is usable`.
+* **Significance:** We successfully bypassed the ISP firewall.
+
+### Phase 8: Tor Exit Node Failures (DNS)
+**Objective:** Connect via Tor using Domain Names.
+* **Target:** `mainnet.zec.rocks` (via Tor).
+* **Result:** 🔴 **FAILED**
+* **Error:** `tor: remote hostname lookup failure`.
+* **Analysis:** Tor Exit Nodes failed to resolve the DNS, or the Exit Nodes were blocked by the target.
+
+### Phase 9: Tor + Direct IP (Bypassing DNS)
+**Objective:** Connect via Tor using raw IP addresses (No DNS).
+* **Target 1:** `35.235.105.143` (Google Cloud / ECC).
+* **Target 2:** `5.9.61.233` (Hetzner / Nighthawk).
+* **Result:** 🔴 **FAILED**
+* **Error:** `tor: operation timed out at exit: Timed out while waiting for answer from exit`.
+* **Analysis:** 1.  **Google Cloud** explicitly blocks connections from known Tor Exit Nodes.
+    2.  **Hetzner** or the Nighthawk firewall also dropped the connection from the Exit Node.
+
+### Phase 10: The Onion Service (Final Attempt)
+**Objective:** Use a Hidden Service (`.onion`) to eliminate Exit Nodes entirely.
+* **Target:** `zcashnodesib... .onion` (ZecRocks Hidden Service).
+* **Result:** 🔴 **CRITICAL FAILURE**
+* **Error:** `tor: operation not supported because Arti feature disabled: Rejecting .onion address; feature onion-service-client not compiled in`.
+* **Root Cause:** The `ZcashLightClientKit` was compiled with the `onion-service-client` feature **disabled** to reduce binary size. Re-enabling this requires forking and recompiling the Rust SDK.
 
 ---
 
-## 🚀 Setup & Installation (Mainnet Alpha)
+## 4. Final Verdict
+The project is blocked by a combination of three hostile layers:
+1.  **Local ISP:** Blocks direct gRPC and DNS (Bypassed via Tor).
+2.  **Cloud Providers:** Block Tor Exit Nodes (Bypassed via Onion Services).
+3.  **Client SDK:** Lacks compilation support for Onion Services (Fatal Flaw).
 
-**⚠️ WARNING: Real Money**
-This branch is configured for **Zcash Mainnet**.
-1.  The keys generated are **REAL**.
-2.  Funds sent to this wallet are **REAL**.
-3.  If you delete the app without backing up your seed phrase, **FUNDS ARE LOST FOREVER.**
-
-### Prerequisites
-* Xcode 15+
-* Physical iPhone (Simulators struggle with FaceID and Camera)
-* ~500MB free space (for Compact Block cache)
-
-### Installation
-1.  Clone the repo.
-2.  Run `pod install` (if using CocoaPods) or let Swift Package Manager resolve dependencies.
-3.  Verify `ZcashEngine.swift` is pointing to `mainnet.lightwalletd.com`.
-4.  Build and Run on a physical device.
-
----
-
-## 📄 License
-
-MIT License. Open Source for the Zcash Community.
+**Recommendation:** Proceed with the **Offline Signer / Air-Gapped Architecture**.
