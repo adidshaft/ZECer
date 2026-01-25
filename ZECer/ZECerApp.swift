@@ -18,36 +18,8 @@ struct ZECerApp: App {
     
     let persistenceController = PersistenceController.shared
     
-//  [Comment out when not in Use] temporary command to force-wipe the Keychain the moment the app launches.
-    init() {
-            print("☢️ MAINNET PREP: STARTING DATA WIPE ☢️")
-            
-            // 1. Wipe Keys (FaceID/Passcode items)
-            KeychainManager.shared.delete()
-            
-            // 2. Wipe ALL Database Files
-            let fileManager = FileManager.default
-            if let docsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
-                 let files = [
-                    "data.db",
-                    "fs_cache",
-                    "sapling-spend.params",
-                    "sapling-output.params",
-                    "general_storage",
-                    "simulated_wallet.db" // Just in case
-                 ]
-                 
-                 for f in files {
-                     let fileUrl = docsUrl.appendingPathComponent(f)
-                     if fileManager.fileExists(atPath: fileUrl.path) {
-                         try? fileManager.removeItem(at: fileUrl)
-                         print("🗑 Deleted: \(f)")
-                     }
-                 }
-            }
-            print("✅ WIPE COMPLETE. READY FOR MAINNET.")
-        }
-//    Nuclear block ends
+    // Removed destructive wipe-on-launch. Use a dedicated debug action if you need to reset state.
+    init() { }
     
     var body: some Scene {
         WindowGroup {
@@ -123,3 +95,4 @@ extension EnvironmentValues {
         set { self[SeedPhraseKey.self] = newValue }
     }
 }
+
