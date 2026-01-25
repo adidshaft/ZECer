@@ -9,95 +9,116 @@
 ---
 
 ## 1. Executive Summary
-The objective was to build a native iOS Zcash wallet ("ZECer") capable of syncing with the Zcash blockchain on the Mainnet. While the core application logic (key derivation, UI, state management) was successfully implemented, the project encountered severe network-level blockades specific to the ISP environment in India.
+The objective was to build a native iOS Zcash wallet capable of syncing with the Mainnet. While the core application logic was successfully implemented, the project encountered severe network-level blockades.
 
-The troubleshooting process evolved from standard connection attempts to advanced circumvention techniques (VPNs, Obfuscation, Cloudflare Bridges) and finally to the **Tor Network**. While we successfully bootstrapped Tor on the device (bypassing the ISP), we hit insurmountable barriers at the protocol level: **Tor Exit Nodes are blocked by Zcash servers**, and the **Zcash SDK lacks compiled support for Onion Services**, rendering the Tor circuit useless for this specific application.
+The troubleshooting process exhausted the entire OSI model, from Application layer timeouts to Transport layer encryption (Tor). We successfully bypassed the ISP using Tor, but failed at the protocol level due to Tor Exit Node blocking and the SDK's lack of compiled support for Onion Services.
 
 ---
 
-## 2. Chronological Troubleshooting Log
+## 2. Inventory of Targets & Configurations
+
+Before detailing the chronology, here is the complete list of endpoints and settings tested.
+
+### 2.1 RPC Nodes & Endpoints Attempted
+| Node Name | Address / IP | Port | Protocol | Result |
+| :--- | :--- | :--- | :--- | :--- |
+| **ECC Testnet** | `lightwalletd.testnet.electriccoin.co` | 9067 | TCP/TLS | 🔴 SSL/ATS Fail |
+| **ECC Mainnet** | `mainnet.lightwalletd.com` | 443 | TCP/TLS | 🔴 Timeout / DNS Fail |
+| **Nighthawk** | `zcash.adityapk.com` | 443 | TCP/TLS | 🔴 Timeout |
+| **ZecRocks** | `mainnet.zec.rocks` | 443 | TCP/TLS | 🔴 Timeout |
+| **Infrastructure** | `lwd1.zcash-infra.com` | 443 | TCP/TLS | 🔴 Timeout |
+| **Asia Pacific** | `ap.lightwalletd.com` | 443 | TCP/TLS | 🔴 Timeout |
+| **ECC Direct IP** | `35.235.105.143` | 443 | TCP/TLS | 🔴 Blocked (Direct & Tor) |
+| **Nighthawk IP** | `5.9.61.233` | 443 | TCP/TLS | 🔴 Blocked (Tor Exit) |
+| **ZecRocks Onion**| `zcashnodesib... .onion` | 80 | Tor Hidden Service | 🔴 SDK Feature Missing |
+
+### 2.2 iOS Network "Tricks" & Settings Modified
+| Setting / Tool | Configuration | Result |
+| :--- | :--- | :--- |
+| **iCloud Private Relay** | **Disabled** (To prevent Apple routing interference) | 🔴 No Change |
+| **Limit IP Address Tracking** | **Disabled** (Wi-Fi Settings) | 🔴 No Change |
+| **Private Wi-Fi Address** | **Disabled** (MAC Address Randomization off) | 🔴 No Change |
+| **DNS Configuration** | Manual override to `8.8.8.8` (Google) & `1.1.1.1` | 🔴 Failed (ISP Intercept) |
+| **Airplane Mode Toggle** | Hard network reset between attempts | 🔴 No Change |
+| **USB Tethering** | Connected via Mac to bypass Wi-Fi radio stack | 🔴 No Change |
+
+---
+
+## 3. Detailed Troubleshooting Chronology
 
 ### Phase 1: Testnet Initialization
-**Objective:** Connect to the Zcash Testnet for safe development.
-* **Configuration:** Endpoint: `lightwalletd.testnet.electriccoin.co` | Port: `9067` | SSL: Enabled
+**Objective:** Connect to Zcash Testnet.
 * **Result:** 🔴 **FAILED**
-* **Error Log:** `SSL Handshake Failed` / `Certificate Invalid`.
-* **Analysis:** Testnet infrastructure certificates were likely expired or rejected by Apple's strict ATS policies.
-* **Decision:** Abandon Testnet and pivot to **Mainnet** production infrastructure.
+* **Error:** `SSL Handshake Failed`. Apple ATS rejected the Testnet certificate chain.
+* **Decision:** Abandon Testnet for Mainnet.
 
-### Phase 2: Mainnet Migration & Stability Fixes
-**Objective:** Establish a stable application state without crashing.
-* **Configuration:** Endpoint: `mainnet.lightwalletd.com` | Birthday: Block 0
-* **Result:** 🔴 **CRITICAL FAIL (Crash)**
-* **Root Cause:** SDK attempted to scan 8 years of history, overloading device RAM.
-* **Fix:** Implemented **"The Birthday Fix"** (Hardcoded `BlockHeight(2750000)`).
-* **Outcome:** ✅ **SUCCESS**. Engine initialized without crashing.
+### Phase 2: Mainnet Stability (The "History" Crash)
+**Objective:** Prevent app crash on startup.
+* **Issue:** Default SDK settings attempted to scan 8 years of blockchain history (from Block 0), causing OOM (Out of Memory) crashes.
+* **Fix:** Implemented **"Birthday Fix"** (Hardcoded `BlockHeight(2750000)`).
+* **Result:** ✅ **SUCCESS** (Engine initialized).
 
-### Phase 3: The ISP Blockade (Direct Connections)
-**Objective:** Complete server handshake (`validateServer`).
-* **Targets:** `mainnet.lightwalletd.com`, `zcash.adityapk.com`, `mainnet.zec.rocks`
-* **Result:** 🔴 **FAILED (Timeout)**
-* **Error:** `serviceGetInfoFailed(... timeOut)`
-* **Analysis:** Requests leave the phone but never receive an ACK. ISP is performing Deep Packet Inspection (DPI) on gRPC headers and dropping packets.
-
-### Phase 4: Encrypted Tunneling (VPNs & Privacy Tech)
-**Objective:** Encrypt packet headers to bypass DPI.
-* **Attempt 4.1 (Cloudflare WARP):** 🔴 FAILED (No change).
-* **Attempt 4.2 (NordVPN Standard/NordLynx):** 🔴 FAILED (Latency >300ms triggered 10s timeout).
-* **Attempt 4.3 (Nym Mixnet):** 🔴 FAILED (Latency >2s per packet, incompatible with gRPC).
-* **Attempt 4.4 (NordVPN Obfuscated/TCP):** 🔴 FAILED. Handshake failed despite obfuscation, indicating DNS blocking or active probing.
-
-### Phase 5: The "Zashi" Protocol & DNS Hardening
-**Objective:** Replicate official wallet configs and fix DNS leaks.
-* **Attempt 5.1 (Timeout Overrides):** Increased to 60s/120s. 🔴 FAILED.
-* **Attempt 5.2 (The Safari Test):** `https://mainnet.lightwalletd.com/` in Safari. ❌ **"Server cannot be found."** (Confirmed DNS Block).
-* **Attempt 5.3 (Hard DNS Reset):** Disabled Private Relay/IP Tracking, forced DNS to `8.8.8.8`. 🔴 FAILED. ISP intercepts and redirects DNS queries.
-
-### Phase 6: The Cloudflare Bridge (Proxy Strategy)
-**Objective:** Mask Zcash traffic as standard web traffic via Cloudflare Workers.
-* **Attempt 6.1 (Standard Forwarding):** 🔴 FAILED (`Error 1016: Origin DNS Error`). Cloudflare could not resolve Zcash domains.
-* **Attempt 6.2 (Direct IP Target):** 🔴 FAILED (`Error 1003: Direct IP access not allowed`). Cloudflare Free Tier forbids raw IP connections.
-* **Attempt 6.3 (Infrastructure Node):** 🔴 FAILED. Cloudflare blocks outbound connections to crypto RPC ports on free accounts.
-
-### Phase 7: The Tor Breakthrough (Arti Integration)
-**Objective:** Use the embedded Tor client (`Arti`) to punch through the ISP firewall.
-* **Configuration:** Enabled `isTorEnabled: true` in SDK.
-* **Result:** ✅ **PARTIAL SUCCESS**
-* **Log:** `arti_client::status: 100%: connecting successfully; directory is usable`
-* **Analysis:** **We defeated the ISP block.** The phone successfully established a circuit into the Tor network.
-
-### Phase 8: The "Exit Node" Blockade
-**Objective:** Connect from the Tor Network to the Zcash Server.
-* **Target:** `mainnet.zec.rocks` (via Tor)
+### Phase 3: The ISP Blockade (DPI & Timeouts)
+**Objective:** Complete gRPC handshake via direct connection.
+* **Targets:** All standard domains (`lightwalletd.com`, `zec.rocks`, `adityapk.com`).
 * **Result:** 🔴 **FAILED**
-* **Error:** `tor: remote hostname lookup failure`
-* **Analysis:** The Tor "Exit Node" (the server connecting us to the real world) could not resolve the DNS for the Zcash node, or the Zcash node blocked the Exit Node's IP.
+* **Error:** `serviceGetInfoFailed(... timeOut)`.
+* **Analysis:** ISP Deep Packet Inspection (DPI) identified gRPC headers and dropped packets.
+
+### Phase 4: VPNs & Privacy Overlays
+**Objective:** Tunnel traffic to bypass DPI.
+* **Attempt 4.1 (Cloudflare WARP):** 🔴 FAILED.
+* **Attempt 4.2 (NordVPN Standard - UDP):** 🔴 FAILED (Latency >300ms triggered SDK timeout).
+* **Attempt 4.3 (NordVPN Obfuscated - TCP/Singapore):** 🔴 FAILED. Handshake failed via "Server not found" (DNS Leak).
+* **Attempt 4.4 (Nym Mixnet):** 🔴 FAILED. Mixnet latency was too high for gRPC keep-alive.
+
+### Phase 5: "Zashi" Config & DNS Hardening
+**Objective:** Replicate official wallet settings and fix DNS.
+* **Action:** Increased SDK timeouts to 60s/120s. Manually set DNS to 8.8.8.8. Disabled all Apple privacy proxies.
+* **The "Safari Test":** Visiting `https://mainnet.lightwalletd.com/` in Safari failed with **"Server cannot be found."**
+* **Conclusion:** ISP is intercepting DNS requests regardless of VPN settings on iOS.
+
+### Phase 6: The Cloudflare Bridge (Proxy)
+**Objective:** Use Cloudflare Workers to mask traffic.
+* **Attempt 6.1 (Standard):** 🔴 FAILED (`Error 1016: Origin DNS Error`). Cloudflare couldn't resolve Zcash domains.
+* **Attempt 6.2 (Direct IP):** 🔴 FAILED (`Error 1003`). Cloudflare forbids Direct IP access.
+* **Attempt 6.3 (Infra Node):** 🔴 FAILED. Cloudflare blocks crypto RPC ports on free tier.
+
+### Phase 7: The Tor Breakthrough
+**Objective:** Use embedded `Arti` Tor client.
+* **Result:** ✅ **SUCCESS**
+* **Log:** `arti_client::status: 100%: connecting successfully; directory is usable`.
+* **Significance:** We successfully bypassed the ISP firewall.
+
+### Phase 8: Tor Exit Node Failures (DNS)
+**Objective:** Connect via Tor using Domain Names.
+* **Target:** `mainnet.zec.rocks` (via Tor).
+* **Result:** 🔴 **FAILED**
+* **Error:** `tor: remote hostname lookup failure`.
+* **Analysis:** Tor Exit Nodes failed to resolve the DNS, or the Exit Nodes were blocked by the target.
 
 ### Phase 9: Tor + Direct IP (Bypassing DNS)
-**Objective:** Bypass Exit Node DNS failure by using Google Cloud IP directly.
-* **Target:** `35.235.105.143` (Official ECC IP) via Tor.
+**Objective:** Connect via Tor using raw IP addresses (No DNS).
+* **Target 1:** `35.235.105.143` (Google Cloud / ECC).
+* **Target 2:** `5.9.61.233` (Hetzner / Nighthawk).
 * **Result:** 🔴 **FAILED**
-* **Error:** `tor: operation timed out at exit`
-* **Analysis:** The destination server (Google Cloud) is explicitly blocking connections coming from known Tor Exit Nodes, or the Exit Nodes themselves block crypto ports (443/9067) to prevent abuse.
+* **Error:** `tor: operation timed out at exit: Timed out while waiting for answer from exit`.
+* **Analysis:** 1.  **Google Cloud** explicitly blocks connections from known Tor Exit Nodes.
+    2.  **Hetzner** or the Nighthawk firewall also dropped the connection from the Exit Node.
 
-### Phase 10: The Onion Service Attempt (The Final Wall)
-**Objective:** Connect to a `.onion` Hidden Service to eliminate Exit Nodes entirely.
+### Phase 10: The Onion Service (Final Attempt)
+**Objective:** Use a Hidden Service (`.onion`) to eliminate Exit Nodes entirely.
 * **Target:** `zcashnodesib... .onion` (ZecRocks Hidden Service).
 * **Result:** 🔴 **CRITICAL FAILURE**
-* **Error:** `tor: operation not supported because Arti feature disabled: Rejecting .onion address; feature onion-service-client not compiled in`
-* **Root Cause:** The `ZcashLightClientKit` (SDK) was compiled with the `onion-service-client` feature **disabled** to save space.
-* **Conclusion:** The app **cannot** connect to Onion addresses without recompiling the Rust dependencies from source, which is outside the scope of standard iOS development.
+* **Error:** `tor: operation not supported because Arti feature disabled: Rejecting .onion address; feature onion-service-client not compiled in`.
+* **Root Cause:** The `ZcashLightClientKit` was compiled with the `onion-service-client` feature **disabled** to reduce binary size. Re-enabling this requires forking and recompiling the Rust SDK.
 
 ---
 
-## 3. Final Verdict
+## 4. Final Verdict
+The project is blocked by a combination of three hostile layers:
+1.  **Local ISP:** Blocks direct gRPC and DNS (Bypassed via Tor).
+2.  **Cloud Providers:** Block Tor Exit Nodes (Bypassed via Onion Services).
+3.  **Client SDK:** Lacks compilation support for Onion Services (Fatal Flaw).
 
-We have exhausted the entire networking stack:
-1.  **ISP Layer:** Bypassed successfully using Tor (`Arti`).
-2.  **DNS Layer:** Bypassed using Direct IPs.
-3.  **Transport Layer:** Failed. Public Zcash nodes block Tor Exit Nodes.
-4.  **Protocol Layer:** Failed. The iOS SDK does not support `.onion` addresses (Hidden Services), removing the only way to bypass Exit Node blocking.
-
-**Current Status:** The `ZECer` app cannot function in "Online Mode" within this specific network environment using the standard SDK distribution. The ISP blocks direct connections, servers block Tor exits, and the SDK blocks Onion services.
-
-**Recommended Pivot:** Shift development to the **"Air-Gapped / Offline Signer"** architecture. This removes the requirement for the iPhone to ever connect to the internet, bypassing all network-level adversaries by design.
+**Recommendation:** Proceed with the **Offline Signer / Air-Gapped Architecture**.
