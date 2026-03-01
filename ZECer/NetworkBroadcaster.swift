@@ -32,9 +32,9 @@ class NetworkBroadcaster {
     static let shared = NetworkBroadcaster()
 
     private let endpoints: [(host: String, port: Int)] = [
-        ("5.9.61.233",              443),
-        ("mainnet.lightwalletd.com", 443),
-        ("mainnet.zec.rocks",        443)
+        ("mainnet.lightwalletd.com", 443),  // ECC/ZF official
+        ("lwd.nubis.cash",           443),  // Nighthawk
+        ("mainnet.zec.rocks",        443)   // ZEC.rocks
     ]
 
     /// Submit a raw Zcash transaction to lightwalletd via manual gRPC-over-HTTP/2.

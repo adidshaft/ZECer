@@ -46,12 +46,14 @@ class ZcashEngine: ObservableObject {
     var cancellables = Set<AnyCancellable>()
 
     let network = ZcashNetworkBuilder.network(for: .mainnet)
-    // Enable Tor-backed networking via the SDK
-    private let useTor: Bool = true
+    // Tor disabled — 5.9.61.233 cert mismatch (dhmosvolos.gr) kills every attempt
+    private let useTor: Bool = false
 
-    // Candidate endpoints (will try in order)
+    // Candidate endpoints tried in waterfall order (first success wins)
     private let endpointCandidates: [(host: String, port: Int, secure: Bool)] = [
-        ("5.9.61.233", 443, true)
+        ("mainnet.lightwalletd.com", 443, true),  // ECC/ZF official
+        ("lwd.nubis.cash",           443, true),  // Nighthawk
+        ("mainnet.zec.rocks",        443, true)   // ZEC.rocks
     ]
 
     // Build a LightWalletEndpoint with extended timeouts
