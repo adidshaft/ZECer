@@ -51,36 +51,20 @@ class TxManager: ObservableObject {
     
     // 3. BROADCAST TO NETWORK (The "Sync" Logic)
     func broadcastPending(using synchronizer: SDKSynchronizer?) async {
-        guard let synchronizer = synchronizer else { return }
-        
         for tx in pendingTxs {
-            guard let hexData = tx.rawHex?.data(using: .utf8) else { continue } // Simplified for demo
-            // In reality, rawHex should be converted back to Data bytes properly
-            
-            // NOTE: Zcash SDK currently creates transactions, but 'broadcasting' a raw hex 
-            // usually requires a lightwalletd proxy or specific SDK method if you have the raw bytes.
-            // For this Alpha, we will Simulate the broadcast success.
-            
+            guard let hex = tx.rawHex, hex != "OUTGOING_TX_PLACEHOLDER" else { continue }
             do {
-                // SIMULATION OF NETWORK CALL
-                try await Task.sleep(nanoseconds: 1_000_000_000) 
-                
-                // If successful, update DB
+                try await NetworkBroadcaster.shared.broadcast(rawTxHex: hex)
                 tx.status = "Confirmed"
-                tx.timestamp = Date() // Update time
+                tx.timestamp = Date()
                 print("Broadcasted TX: \(tx.id?.uuidString ?? "?")")
-                
             } catch {
-                print("Broadcast Failed")
+                print("Broadcast failed: \(error)")
             }
         }
-        
+
         PersistenceController.shared.save()
-        
-        // Refresh UI
-        DispatchQueue.main.async {
-            self.fetchPending()
-        }
+        DispatchQueue.main.async { self.fetchPending() }
     }
     
     // 4. SAVE OUTGOING TX

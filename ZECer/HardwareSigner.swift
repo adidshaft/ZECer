@@ -57,9 +57,8 @@ class HardwareSigner {
     func signPayload(data: Data) async throws -> Data {
         let key = try getSecureKey()
         
-        // FIX: Use .derRepresentation to get the Raw Data signature
+        // Return hex-encoded DER signature so BLE packet stays valid UTF-8
         let signature = try key.signature(for: data).derRepresentation
-        
-        return signature
+        return signature.hexString.data(using: .utf8)!
     }
 }
